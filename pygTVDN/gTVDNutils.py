@@ -4,6 +4,7 @@ from easydict import EasyDict as edict
 from tqdm.autonotebook import tqdm
 import time
 from Rfuns import bw_nrd0_R, smooth_spline_R
+from scipy.signal import decimate, detrend
 
 
 
@@ -177,7 +178,7 @@ def GetAmat(dXmat, Xmat, time, downrate=1, fct=1):
 
 
 # Function to obtain the New Xmat and dXmat to do change point detection
-def GetNewEst(dXmat, Xmat, Amat, r, is_full=False):
+def GetNewEstOne(dXmat, Xmat, Amat, r, is_full=False):
     """
     Input: 
         dXmat, Estimated first derivative of X(t), d x n
@@ -200,24 +201,56 @@ def GetNewEst(dXmat, Xmat, Amat, r, is_full=False):
     else:
         return ndXmat, nXmat
 
+def GetNewEst(dXmats, Xmats, Amat, r, is_full=False, showProg=False):
+    """
+    Input: 
+        dXmat, Estimated first derivative of X(t), N x d x n
+        Xmat, Estimated of X(t), N x d x n
+        Amat: The A matrix to to eigendecomposition, d x d
+        r: The number of eigen values to keep
+        is_full: Where return full outputs or not
+    Return: 
+        nXmat, ndXmat, rAct x n 
+    """
+    N = len(dXmats)
+    eigVals, eigVecs = np.linalg.eig(Amat)
+    eigValsfull = np.concatenate([[np.Inf], eigVals])
+    kpidxs = np.where(np.diff(np.abs(eigValsfull))[:r] != 0)[0]
+    eigVecsInv = np.linalg.inv(eigVecs)
+    nXmats, ndXmats = [], []
+    if showProg:
+        progBar = tqdm(range(N))
+    else:
+        progBar = range(N)
+    for i in progBar:
+        dXmat, Xmat = dXmats[i], Xmats[i]
+        nXmat = eigVecsInv[kpidxs, :].dot(Xmat)
+        ndXmat = eigVecsInv[kpidxs, :].dot(dXmat)
+        nXmats.append(nXmat)
+        ndXmats.append(ndXmat)
+    if is_full:
+        return edict({"ndXmats":ndXmats, "nXmats":nXmats, "kpidxs":kpidxs, "eigVecs":eigVecs, "eigVals":eigVals, "r": r})
+    else:
+        return ndXmats, nXmats
+
 # optimization class
 class OneStepOpt():
     """
         I concatenate the real and image part into one vector.
     """
-    def __init__(self, X, Y, lastTheta, penalty="SCAD", is_ConGrad=False, **paras):
+    def __init__(self, X, Y, iTheta=None, iRho=None, penalty="SCAD", is_ConGrad=False, **paras):
         """
          Input: 
              Y: A matrix with shape, R x n, Complex
              X: A matrix with shape, R x n, 
-             lastTheta: The parameters for optimizing at the last time step, initial parameters, vector of 2R(n-1), real data
+             iTheta: The initial parameters for theta, vector of 2R(n-1), real data
+             iRho: initial value, a vector of length (D-1)2R, real data
              penalty: The penalty type, "SCAD" or "GroupLasso"
              is_ConGrad: Whether to use conjugate gradient method to update gamma or not. 
                         When data are large, it is recommended to use it
              paras:
                  beta: tuning parameter for iteration
                  alp: tuning parameter for iteration
-                 rho: a vector of length (D-1)2R, real data
                  lam: the parameter for SCAD/Group lasso
                  a: the parameter for SCAD, > 1+1/beta
                  iterNum:  integer, number of iterations
@@ -227,7 +260,7 @@ class OneStepOpt():
                  b: radius of the L1-ball projection
         """
         
-        parasDefVs = {"a": 2.7,  "beta": 1, "alp": 0.9,  "rho": None,  "lam": 1e2, 
+        parasDefVs = {"a": 2.7,  "beta": 1, "alp": 0.9,  "lam": 1e2, 
                       "iterNum": 100, "iterC": 1e-4, "eps": 1e-6, "b": 100}
         
         self.paras = edict(parasDefVs)
@@ -241,10 +274,15 @@ class OneStepOpt():
         self.X = X
         self.Y = Y
         
-        if self.paras.rho is None:
-            self.paras.rho = torch.ones(self.R2*(self.n-1))
+        self.rho = iRho
+        if self.rho is None:
+            self.rho = torch.ones(self.R2*(self.n-1))
             
-        self.lastTheta= lastTheta
+        self.vecTheta= iTheta
+        if self.vecTheta is None:
+            self.vecTheta = torch.randn(self.R2*(self.n-1))
+            
+        
         self.newVecGam = None
         self.halfRho = None
         self.penalty = penalty.lower()
@@ -263,6 +301,10 @@ class OneStepOpt():
         self.ThetaMat = None
         self.numEs = 1
         
+        self.chDiff = torch.tensor(1e10)
+        self.lastVecGam = None
+        self.lastRho = None
+        self.lastVecTheta = None
         
     def _LeftMatOpt(self, vec):
         rVec1 = self.leftMatVecP1 * vec
@@ -316,7 +358,7 @@ class OneStepOpt():
             NewXY2 = - self.NewXi * self.NewYr + self.NewXr * self.NewYi # R x n
             self.NewXYR2 = torch.cat((NewXY1, NewXY2), dim=0) # 2R x n
         rightVec = self.NewXYR2.T.flatten()/self.numEs + \
-                    DiffMatTOpt(self.paras.rho + self.paras.beta * self.lastTheta, self.R2)
+                    DiffMatTOpt(self.rho + self.paras.beta * self.vecTheta, self.R2)
         
         self.newVecGam, _  = torch.solve(rightVec.reshape(-1, 1), self.leftMat.to_dense()) 
         self.newVecGam = self.newVecGam.reshape(-1)
@@ -336,7 +378,7 @@ class OneStepOpt():
             NewXY2 = - self.NewXi * self.NewYr + self.NewXr * self.NewYi
             self.NewXYR2 = torch.cat((NewXY1, NewXY2), dim=0) # 2R x n
         rightVec = self.NewXYR2.T.flatten()/self.numEs + \
-                    DiffMatTOpt(self.paras.rho + self.paras.beta * self.lastTheta, self.R2)
+                    DiffMatTOpt(self.rho + self.paras.beta * self.vecTheta, self.R2)
         
         self.newVecGam = self._ConjuGrad(rightVec)
     
@@ -357,7 +399,7 @@ class OneStepOpt():
         """
             Update the vector rho at 1/2 step, second step
         """
-        halfRho = self.paras.rho - self.paras.alp * self.paras.beta * (DiffMatOpt(self.newVecGam, self.R2) - self.lastTheta)
+        halfRho = self.rho - self.paras.alp * self.paras.beta * (DiffMatOpt(self.newVecGam, self.R2) - self.vecTheta)
         self.halfRho = halfRho
        
     
@@ -384,7 +426,7 @@ class OneStepOpt():
         
         normCs[normCs!=0] = normCs[normCs!=0]/hThetaL2Norm[normCs!=0]
         
-        self.lastTheta = (tranHTheta*normCs.reshape(-1, 1)).flatten()
+        self.vecTheta = (tranHTheta*normCs.reshape(-1, 1)).flatten()
         
     def updateThetaGL(self):
         """
@@ -400,15 +442,15 @@ class OneStepOpt():
         normCs = normC1
         
         normCs[normC1!=0] = normC1[normC1!=0]/hThetaL2Norm[normC1!=0]
-        self.lastTheta = (tranHTheta*normCs.reshape(-1, 1)).flatten()
+        self.vecTheta = (tranHTheta*normCs.reshape(-1, 1)).flatten()
         
     
     def updateRho(self):
         """
             Update the vector rho, fourth step
         """
-        newRho = self.halfRho - self.paras.alp * self.paras.beta * (DiffMatOpt(self.newVecGam, self.R2) - self.lastTheta)
-        self.paras.rho = newRho
+        newRho = self.halfRho - self.paras.alp * self.paras.beta * (DiffMatOpt(self.newVecGam, self.R2) - self.vecTheta)
+        self.rho = newRho
         
         
     def OneLoop(self):
@@ -441,6 +483,15 @@ class OneStepOpt():
         self.updateRho()
         ts.append(time.time())
         #print(np.diff(ts))
+       
+    def DiffVal(self):
+        """
+        Calculate the stopping criterion
+        """
+        v1 = torch.norm(self.vecTheta-self.lastVecTheta)*self.paras.beta
+        v2 = torch.norm(self.rho-self.lastRho)/self.paras.beta
+        npara = len(self.rho)
+        self.chDiff = torch.max(v1, v2)/np.sqrt(npara)
         
     
     def __call__(self, is_showProg=False, leave=False, **paras):
@@ -449,35 +500,40 @@ class OneStepOpt():
         if self.paras.iterC is None:
             self.paras.iterC = 0
         
-        chDiff = torch.tensor(1e10)
         self.OneLoop()
         
-        lastVecGam = self.newVecGam
         if is_showProg:
             with tqdm(total=self.paras.iterNum, leave=leave) as pbar:
                 for i in range(self.paras.iterNum):
-                    pbar.set_description(f"Inner Loop: The chdiff is {chDiff.item():.3e}.")
+                    pbar.set_description(f"Inner Loop: The chdiff is {self.chDiff.item():.3e}.")
                     pbar.update(1)
                     
-                    self.OneLoop()
+                    self.lastVecGam = self.newVecGam
+                    self.lastRho = self.rho
+                    self.lastVecTheta = self.vecTheta
                     
-                    chDiff = torch.norm(self.newVecGam-lastVecGam)/torch.norm(lastVecGam)
-                    lastVecGam = self.newVecGam
-                    if chDiff < self.paras.iterC:
+                    self.OneLoop()
+                    self.DiffVal()
+                    
+                    
+                    if self.chDiff < self.paras.iterC:
                         pbar.update(self.paras.iterNum)
                         break
         else:
             for i in range(self.paras.iterNum):
                 
-                self.OneLoop()
+                self.lastVecGam = self.newVecGam
+                self.lastRho = self.rho
+                self.lastVecTheta = self.vecTheta
                 
-                chDiff = torch.norm(self.newVecGam-lastVecGam)/torch.norm(lastVecGam)
-                lastVecGam = self.newVecGam
-                if chDiff < self.paras.iterC:
+                self.OneLoop()
+                self.DiffVal()
+                
+                if self.chDiff < self.paras.iterC:
                     break
         
         self._post()
             
     def _post(self):
         self.GamMat = colStackFn(self.newVecGam, self.R2) # 2R x n
-        self.ThetaMat = colStackFn(self.lastTheta, self.R2) # 2R x (n-1)
+        self.ThetaMat = colStackFn(self.vecTheta, self.R2) # 2R x (n-1)
