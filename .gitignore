@@ -3,3 +3,4 @@ Utitled*
 tmp*.ipynb
 .ipynb_checkpoints/
 __pycache__/
+*.pkl
