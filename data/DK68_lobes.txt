@@ -1,0 +1,68 @@
+L-Bankssts__Temporal
+L-Caudalanteriorcingulate__Frontal (Cingulate)
+L-Caudalmiddlefrontal__Frontal
+L-Cuneus__Occipital
+L-Entorhinal__Temporal
+L-Frontalpole__Frontal
+L-Fusiform__Temporal
+L-Inferiorparietal__Parietal
+L-Inferiortemporal__Temporal
+L-Insula__
+L-Isthmuscingulate__Parietal (Cingulate)
+L-Lateraloccipital__Occipital
+L-Lateralorbitofrontal__Frontal
+L-Lingual__Occipital
+L-Medialorbitofrontal__Frontal
+L-Middletemporal__Temporal
+L-Paracentral__Frontal
+L-Parahippocampal__Temporal
+L-Parsopercularis__Frontal
+L-Parsorbitalis__Frontal
+L-Parstriangularis__Frontal
+L-Pericalcarine__Occipital
+L-Postcentral__Parietal
+L-Posteriorcingulate__Parietal (Cingulate)
+L-Precentral__Frontal
+L-Precuneus__Parietal
+L-Rostralanteriorcingulate__Frontal (Cingulate)
+L-Rostralmiddlefrontal__Frontal
+L-Superiorfrontal__Frontal
+L-Superiorparietal__Parietal
+L-Superiortemporal__Temporal
+L-Supramarginal__Parietal
+L-Temporalpole__Temporal
+L-Transversetemporal__Temporal
+R-Bankssts__Temporal
+R-Caudalanteriorcingulate__Frontal (Cingulate)
+R-Caudalmiddlefrontal__Frontal
+R-Cuneus__Occipital
+R-Entorhinal__Temporal
+R-Frontalpole__Frontal
+R-Fusiform__Temporal
+R-Inferiorparietal__Parietal
+R-Inferiortemporal__Temporal
+R-Insula__
+R-Isthmuscingulate__Parietal (Cingulate)
+R-Lateraloccipital__Occipital
+R-Lateralorbitofrontal__Frontal
+R-Lingual__Occipital
+R-Medialorbitofrontal__Frontal
+R-Middletemporal__Temporal
+R-Paracentral__Frontal
+R-Parahippocampal__Temporal
+R-Parsopercularis__Frontal
+R-Parsorbitalis__Frontal
+R-Parstriangularis__Frontal
+R-Pericalcarine__Occipital
+R-Postcentral__Parietal
+R-Posteriorcingulate__Parietal (Cingulate)
+R-Precentral__Frontal
+R-Precuneus__Parietal
+R-Rostralanteriorcingulate__Frontal (Cingulate)
+R-Rostralmiddlefrontal__Frontal
+R-Superiorfrontal__Frontal
+R-Superiorparietal__Parietal
+R-Superiortemporal__Temporal
+R-Supramarginal__Parietal
+R-Temporalpole__Temporal
+R-Transversetemporal__Temporal

@@ -1,4 +1,4 @@
-data/
+data/*.mat
 Utitled*
 tmp*.ipynb
 .ipynb_checkpoints/
