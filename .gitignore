@@ -6,3 +6,4 @@ __pycache__/
 *.pkl
 backup/
 tmp/
+!data/HCP_SC_advdctrl.pkl
