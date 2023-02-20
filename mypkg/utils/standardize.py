@@ -26,8 +26,12 @@ def minmax(x):
 
 # minmax a vec between [dlt, 1], dlt is a small number > 0
 # for brainplotting, 0 will be treated as NULL.
-def minmax_plotting(vec):
-    min_dlt = np.min(vec)-0.01
+def minmax_plotting(vec, order=1):
+    min_v = np.min(vec)
     max_v = np.max(vec)
-    res = (vec-min_dlt)/(max_v-min_dlt)
+    res = (vec-min_v)/(max_v-min_v)
+    res = (res)**order
+    
+    adj_min_v = np.min([1e-3, np.sort(res)[1]/2]) # to avoid 0
+    res[np.argmin(res)] = adj_min_v
     return res

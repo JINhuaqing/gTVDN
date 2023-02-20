@@ -83,4 +83,4 @@ REGION_NAMES_WLOBE = np.array([ix.strip() for ix in _region_names_lobes])
 
 RES_ROOT = Path(_cur_dir/"../results")
 DATA_ROOT = Path(_cur_dir/"../data")
-FIG_ROOT = Path(_cur_dir/"../fig")
+FIG_ROOT = Path(_cur_dir/"../figs")
