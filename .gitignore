@@ -7,4 +7,3 @@ __pycache__/
 backup/
 tmp/
 !data/HCP_SC_advdctrl.pkl
-method8/
