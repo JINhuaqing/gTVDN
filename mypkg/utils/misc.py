@@ -61,10 +61,12 @@ def paras2name(paras, ext=".pkl"):
 
 
 # return the idxs to keep based on the cumsum cumulated cutoff
-def cumsum_cutoff(vec, cutoff=0.8):
+def cumsum_cutoff(vec, cutoff=0.8, ord_=1):
+    """This fn is to select rank based on the L-ord_ norm cutoff
+    """
     vec = np.abs(vec)
     sorted_idx = np.argsort(-vec)
-    ratio_vec = np.cumsum(vec[sorted_idx])/np.sum(vec)
+    ratio_vec = np.cumsum(vec[sorted_idx]**ord_)/(np.linalg.norm(vec, ord=ord_)**ord_)
     rank = np.sum(ratio_vec <cutoff) + 1
     keep_idx = np.sort(sorted_idx[:rank])
     return keep_idx

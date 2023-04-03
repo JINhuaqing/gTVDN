@@ -7,3 +7,5 @@ __pycache__/
 backup/
 tmp/
 !data/HCP_SC_advdctrl.pkl
+results/
+mid_results

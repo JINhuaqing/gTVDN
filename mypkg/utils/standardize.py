@@ -13,10 +13,13 @@ def minmax_mat(mat, is_row=True):
 
 
 # minmax a vec between [-1, 1]
-def minmax_pn(x):
+def minmax_pn(x, order=1):
     num = 2 * (x-np.min(x))
     den = np.max(x) - np.min(x)
-    return num/den - 1
+    res = num/den - 1
+    res[res>0] = res[res>0]**order
+    res[res<0] = -np.abs(res[res<0])**order
+    return res
 
 
 # minmax a vec between [0, 1]

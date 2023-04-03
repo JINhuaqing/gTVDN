@@ -1,0 +1,3 @@
+R pkg:
+    1. circlize: for chord plot
+    2. Cairo: for saving jpg  in linux
